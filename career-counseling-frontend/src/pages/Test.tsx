@@ -2,15 +2,26 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Question from '../components/Question';
 import { Question as QuestionType } from '../types';
-import { getQuestions, submitTest } from '../services/api';
+import { getQuestions, submitTest, getCurrentUser } from '../services/api';
 
 export default function TestPage() {
+  const navigate = useNavigate();
   const [currentQuestion, setCurrentQuestion] = React.useState(0);
   const [answers, setAnswers] = React.useState<Record<number, number>>({});
   const [questions, setQuestions] = React.useState<QuestionType[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState('');
-  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        await getCurrentUser();
+      } catch (err) {
+        navigate('/');
+      }
+    };
+    checkAuth();
+  }, [navigate]);
 
   React.useEffect(() => {
     const fetchQuestions = async () => {
@@ -33,13 +44,17 @@ export default function TestPage() {
   const handleSubmit = async () => {
     try {
       setIsLoading(true);
-      // TODO: Submit answers to API
+      const formattedAnswers = Object.entries(answers).map(([qId, oId]) => ({
+        question_id: Number(qId),
+        option_id: oId
+      }));
+      
+      const { test_result_id } = await submitTest(formattedAnswers);
       navigate('/results', { 
-        state: { recommendations: [] } // Will be populated from API response
+        state: { testResultId: test_result_id }
       });
     } catch (err) {
       setError('Failed to submit test. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };

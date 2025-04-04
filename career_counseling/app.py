@@ -10,6 +10,14 @@ def create_app():
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
     app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
     
+    # Email configuration
+    app.config['MAIL_SERVER'] = 'smtp.example.com'
+    app.config['MAIL_PORT'] = 587
+    app.config['MAIL_USE_TLS'] = True
+    app.config['MAIL_USERNAME'] = 'your-email@example.com'
+    app.config['MAIL_PASSWORD'] = 'your-email-password'
+    app.config['MAIL_DEFAULT_SENDER'] = 'your-email@example.com'
+    
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)

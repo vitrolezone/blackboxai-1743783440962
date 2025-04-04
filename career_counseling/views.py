@@ -1,6 +1,9 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from itsdangerous import URLSafeTimedSerializer
+import smtplib
+from email.mime.text import MIMEText
 from extensions import db
 from models import User, Question, Option, Career, TestResult, CareerRecommendation
 from ai_engine import analyze_results, recommend_careers

@@ -68,3 +68,13 @@ export const getCurrentUser = async () => {
   const response = await api.get('/protected');
   return response.data;
 };
+
+export const requestPasswordReset = async (email: string) => {
+  const response = await api.post('/request-password-reset', { email });
+  return response.data;
+};
+
+export const resetPassword = async (token: string, newPassword: string) => {
+  const response = await api.post('/reset-password', { token, new_password: newPassword });
+  return response.data;
+};

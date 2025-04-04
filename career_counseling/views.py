@@ -1,25 +1,50 @@
 from flask import Blueprint, jsonify, request
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from extensions import db
 from models import User, Question, Option, Career, TestResult, CareerRecommendation
 from ai_engine import analyze_results, recommend_careers
 
 main = Blueprint('main', __name__)
 
+@main.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    user = User.query.filter_by(email=data['email']).first()
+    
+    if not user or not user.check_password(data['password']):
+        return jsonify({'error': 'Invalid email or password'}), 401
+        
+    access_token = create_access_token(identity=user.id)
+    return jsonify({
+        'access_token': access_token,
+        'user_id': user.id,
+        'username': user.username
+    })
+
 @main.route('/api/register', methods=['POST'])
 def register():
     data = request.json
-    hashed_password = generate_password_hash(data['password'])
+    if User.query.filter_by(email=data['email']).first():
+        return jsonify({'error': 'Email already exists'}), 400
+        
     new_user = User(
         username=data['username'],
-        email=data['email'],
-        password_hash=hashed_password
+        email=data['email']
     )
+    new_user.set_password(data['password'])
     db.session.add(new_user)
     db.session.commit()
     return jsonify({'message': 'User created successfully', 'user_id': new_user.id}), 201
 
+@main.route('/api/protected', methods=['GET'])
+@jwt_required()
+def protected():
+    current_user = get_jwt_identity()
+    return jsonify(logged_in_as=current_user), 200
+
 @main.route('/api/questions', methods=['GET'])
+@jwt_required()
 def get_questions():
     questions = Question.query.all()
     return jsonify([{
@@ -30,15 +55,17 @@ def get_questions():
     } for q in questions])
 
 @main.route('/api/submit-test', methods=['POST'])
+@jwt_required()
 def submit_test():
     try:
         data = request.json
         
         # Validate input
-        if not data or 'user_id' not in data or 'answers' not in data:
+        if not data or 'answers' not in data:
             return jsonify({'error': 'Invalid request data'}), 400
             
-        user = User.query.get(data['user_id'])
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
         if not user:
             return jsonify({'error': 'User not found'}), 404
             
@@ -82,6 +109,7 @@ def submit_test():
         return jsonify({'error': str(e)}), 500
 
 @main.route('/api/recommendations/<int:user_id>', methods=['GET'])
+@jwt_required()
 def get_recommendations(user_id):
     results = TestResult.query.filter_by(user_id=user_id).order_by(TestResult.date_taken.desc()).first()
     if not results:

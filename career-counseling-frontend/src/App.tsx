@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import HomePage from './pages/Home';
 import TestPage from './pages/Test';
 import ResultsPage from './pages/Results';
+import ResetPasswordPage from './pages/ResetPassword';
 import { getCurrentUser } from './services/api';
 
 function App() {
@@ -43,6 +44,7 @@ function App() {
           path="/results" 
           element={isAuthenticated ? <ResultsPage /> : <Navigate to="/" />} 
         />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
       </Routes>
     </Router>
   );

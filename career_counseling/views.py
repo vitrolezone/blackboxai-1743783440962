@@ -40,11 +40,57 @@ def register():
     db.session.commit()
     return jsonify({'message': 'User created successfully', 'user_id': new_user.id}), 201
 
+def generate_token(email):
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    return serializer.dumps(email, salt='password-reset-salt')
+
+def send_reset_email(email, token):
+    reset_url = f"http://localhost:3000/reset-password?token={token}"
+    msg = MIMEText(f"Click here to reset your password: {reset_url}")
+    msg['Subject'] = 'Password Reset Request'
+    msg['From'] = current_app.config['MAIL_DEFAULT_SENDER']
+    msg['To'] = email
+    
+    with smtplib.SMTP(current_app.config['MAIL_SERVER'], current_app.config['MAIL_PORT']) as server:
+        server.starttls()
+        server.login(current_app.config['MAIL_USERNAME'], current_app.config['MAIL_PASSWORD'])
+        server.send_message(msg)
+
 @main.route('/api/protected', methods=['GET'])
 @jwt_required()
 def protected():
     current_user = get_jwt_identity()
     return jsonify(logged_in_as=current_user), 200
+
+@main.route('/api/request-password-reset', methods=['POST'])
+def request_password_reset():
+    email = request.json.get('email')
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({'error': 'Email not found'}), 404
+    
+    token = generate_token(email)
+    send_reset_email(email, token)
+    return jsonify({'message': 'Password reset email sent'}), 200
+
+@main.route('/api/reset-password', methods=['POST'])
+def reset_password():
+    token = request.json.get('token')
+    new_password = request.json.get('new_password')
+    
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    try:
+        email = serializer.loads(token, salt='password-reset-salt', max_age=3600)
+    except:
+        return jsonify({'error': 'Invalid or expired token'}), 400
+    
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    user.set_password(new_password)
+    db.session.commit()
+    return jsonify({'message': 'Password updated successfully'}), 200
 
 @main.route('/api/questions', methods=['GET'])
 @jwt_required()
